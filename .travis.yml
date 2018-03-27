@@ -1,0 +1,28 @@
+sudo: true
+os: osx
+cache: false
+env:
+  matrix:
+  - URL=https://developer.salesforce.com/media/salesforce-cli/sfdx-osx.pkg
+  global:
+  - secure: QY7JAcJTc0zCh2oihFytTbCszD4Z+aPpO/l8vR6rz7jKT7L1HplgoINLmKEGBt/LJWoHC+O9j1+1noWHx0Nf8xyvePuEn0SMV9uUpUcGFGj9ZUdTQ1YL+zNCdV9nZe1KHSEI3DLZ7kpo7RUJ5z4yxG/qD1xI3OA64HEX00IkJCABI6FBnZp8o5rFINHbi1cGngIlvQC6QL4D7BjsOCdZF1m6A3fGKOfSvRD155abo7H+XEQj5+K7hUDzLiOL2yeqMr/KJbrs/Hf4EZqv6LYOQZYbdIcaUI92c0oWjK1t/NN8Vm08x9Pj0vylUAspaxckanJcMG3uNNaw1VThRpABd92tznakNmsTmGc5+sPgdgl1Td3tJWJSLTnSZpsb+in6ceNSyjzcJiFML71xZIFNZnwaNvHfGcyofsVTfsAyHKY+jK7Zg3R5IV6TThbbiVFg7/VsSGdIRf4sl1PChCyNYu1K+8vh4ZiOcopwzXD2h24A+zOVYG5k9+BuHiN5aQF3HL8vEDKm4wo3W7aF1g6WBLgfczq+CEELWUxG2tKFnCIRwF6tKcPHL7zk9p205ndxfY/aSdQqZ/M7CJm4UZA/yj8s9XGX00cNmeKiizJNOvH1BqNtrcN8tEBN2JZDdDQFyr9kL2OXHUBP3OGlXwxzj3OABQGItmb4rKdRZf7jbew=
+  - secure: dbgCH7XKSuJeUZw97uge1oUS+ypwBJMIM2+EWIWBdpUUN/kez4xQOJuffS060wavoKjaNylAFplbjnGR1/1Egr5XbqOydUS5Q+XAsoQVc5vbJIE1qwl5sP8ouRMVFyY8WFTkvn7hLRh3tLxcvJmWbZ3jMi0ZPJRE0JZo3+BfN6bpwdSXRGhtNWcnmsVNjfbiZwNjb9/x+eij9wvAFPy6FNV7ipY1U/E7uuWCtMrT+4I7zwLrOTlHJgCrb0Q8TcntDnzGb5texex/kN52GQDYXh10wVl0LJ2vKzmPH/y4cSlTl7qouqwOJM23+yKGR2qPhc4Zvm35zZH+hGu06NByph8vBVIUCVY6YU4nKfBEnJ5UImgjdGDOu471nmjwx+2V2qvufwqKQ7bdMLuqDWv3NtJ3KIBTbdkAQljvwCKFo/Uj5YFTKUReGrNrSY5etXQkaCzjKOMqg45hya2pUYWDfE+zGn6as4Drb/1kmiw7l3Feq7RWtMexfCL5x6tUz/dkekUbna9g5WBvPxilDzL2k6P4mxMoBJ2zetbot/G6kRy48oGL2EnH3rAloryiWWs8E6tbs7r2I9yKP5QTtW3uzQBq/1iMUuYfLzfS6NIeMLYxrEnDmw7AKeQeufovCwtUTGvrndaKqDMiFScX3AR6ap0YBswbD50b1nI+813C8Fs=
+before_install:
+- openssl aes-256-cbc -k $SERVER_KEY_PASS -in assets/server.key.enc -out assets/server.key
+  -d
+- export SFDX_AUTOUPDATE_DISABLE=true
+- export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+- export SFDX_DOMAIN_RETRY=300
+- curl $URL --output sfdx-osx.pkg
+- sudo installer -pkg sfdx-osx.pkg -target /
+- export PATH=./sfdx/$(pwd):$PATH
+- sfdx update
+- sfdx --version
+- sfdx plugins --core
+- sfdx force:auth:jwt:grant --clientid $CONSUMER_KEY --jwtkeyfile assets/server.key
+  --username $DEVHUB_USERNAME --setdefaultdevhubusername -a huborg
+script:
+- sfdx force:org:create -v huborg -s -f config/project-scratch-def.json -a ciorg
+- sfdx force:source:push -u ciorg
+- sfdx force:apex:test:run -u ciorg -c -r human -w 10
+- sfdx force:org:delete -u ciorg -p
